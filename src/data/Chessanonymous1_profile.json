@@ -1,0 +1,93 @@
+{
+  "id": "chessanonymous1",
+  "username": "Chessanonymous1",
+  "perfs": {
+    "ultraBullet": {
+      "games": 106,
+      "rating": 1607,
+      "rd": 101,
+      "prog": 53
+    },
+    "bullet": {
+      "games": 291,
+      "rating": 2686,
+      "rd": 84,
+      "prog": 49
+    },
+    "blitz": {
+      "games": 7446,
+      "rating": 2449,
+      "rd": 46,
+      "prog": -17
+    },
+    "rapid": {
+      "games": 127,
+      "rating": 2447,
+      "rd": 80,
+      "prog": 58
+    },
+    "classical": {
+      "games": 0,
+      "rating": 1500,
+      "rd": 500,
+      "prog": 0,
+      "prov": true
+    },
+    "correspondence": {
+      "games": 0,
+      "rating": 1500,
+      "rd": 500,
+      "prog": 0,
+      "prov": true
+    },
+    "chess960": {
+      "games": 406,
+      "rating": 2141,
+      "rd": 58,
+      "prog": 7
+    },
+    "puzzle": {
+      "games": 522,
+      "rating": 2519,
+      "rd": 91,
+      "prog": 0
+    }
+  },
+  "createdAt": 1722779940574,
+  "profile": {
+    "flag": "BW",
+    "bio": "Hola, soy jugador y entrenador, puedes seguirme en Tik tok como chessanonymous, en twich: https://www.twitch.tv/chessanonimous0\r\nhttps://youtube.com/@chessanonymous123-r5u?si=LzZkTBWjWllxG0Uw",
+    "realName": "Gerald Freds",
+    "fideRating": 2175,
+    "links": "https://www.twitch.tv/chessanonimous0\r\n\r\nhttps://youtube.com/@chessanonymous123-r5u?si=LzZkTBWjWllxG0Uw"
+  },
+  "seenAt": 1753153532335,
+  "playTime": {
+    "total": 2226907,
+    "tv": 31472
+  },
+  "url": "https://lichess.org/@/Chessanonymous1",
+  "count": {
+    "all": 8405,
+    "rated": 8377,
+    "ai": 25,
+    "draw": 354,
+    "drawH": 354,
+    "loss": 3328,
+    "lossH": 3303,
+    "win": 4723,
+    "winH": 4723,
+    "bookmark": 0,
+    "playing": 0,
+    "import": 0,
+    "me": 0
+  },
+  "streamer": {
+    "twitch": {
+      "channel": "https://www.twitch.tv/chessanonimous0"
+    }
+  },
+  "followable": true,
+  "following": false,
+  "blocking": false
+}
