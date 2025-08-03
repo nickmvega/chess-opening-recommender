@@ -1,127 +1,200 @@
-# Chess Opening Recommender
+# Chess Opening Recommender
 
-A personalized opening recommendation tool for Lichess users. It analyzes a player’s game history (strengths, weaknesses, style) and suggests suitable chess openings (with study resources), then displays the chosen opening’s main line on an interactive board.
-
----
-
-## Project Objectives
-
-1. **Understand play style:** Extract quantitative features from a user’s public Lichess games.
-2. **Approximate style similarity:** Embed every active Lichess user (and all titled users) in the same vector space; measure closeness.
-3. **Opening recommendation:** Suggest openings that stylistically similar users both *play* and *succeed* with.
-4. **Celeb GM/IM match:** Assign the titled player whose style vector is closest to the user’s.
+A full‐stack pipeline that fetches Lichess games, profiles player “style” via feature engineering, clusters elite players, finds stylistic peers, and recommends personalized openings for White and Black.
 
 ---
 
-## Model & Data‑Prep Overview
+## Table of Contents
 
-- **Data ingestion:** Parse monthly **Lichess PGN.zst** dumps into a columnar store (Parquet/DuckDB).
-- **Feature engineering:** Move-sequence embeddings (Doc2Vec/Word2Vec on SAN tokens), aggregated opening metrics (win-rate, engine eval after move 10), positional/tactical counts (piece activity, captures, checks, pawn-structure density).
-- **Style embedding:** Concatenate engineered stats with sequence embedding → reduce via PCA → ℝ<sub>d</sub> style vector.
-- **Similarity search:** Build FAISS ANN index over all style vectors; cosine distance retrieves top-K similar users.
-- **Recommendation:** For each opening, compute weighted success among top-K neighbors → rank & return N best.
-- **Celeb match:** Compute nearest titled player (GM/IM/FM) in the same vector space.
+1. [Project Overview](#project-overview)
+2. [Features](#features)
+3. [Architecture & Directory Layout](#architecture--directory-layout)
+4. [Getting Started](#getting-started)
 
-## Step‑by‑Step Workflow
+   * [Prerequisites](#prerequisites)
+   * [Installation](#installation)
+   * [Environment Variables](#environment-variables)
+5. [Running Locally](#running-locally)
 
-### 1. Ingest Raw Data
+   * [API Server](#api-server)
+   * [Frontend](#frontend)
+6. [API Reference](#api-reference)
+7. [Caching & Storage](#caching--storage)
+8. [Examples](#examples)
+9. [Next Steps](#next-steps)
+10. [Credits](#credits)
 
+---
+
+## Project Overview
+
+This system allows you to input a Lichess username (and optionally a time control) and receive:
+
+* **Your style profile** (20+ numeric features: game length, material trades, queen deployment, checks, win-rate, etc.).
+* **Top 5 stylistic peers** drawn from a reference set of 500 “elite” players.
+* **Recommended openings** (2–3 for White and Black) based on peer performance, weighted by both score% and sample size.
+
+Built with:
+
+* **Python** (data fetching & feature engineering)
+* **FastAPI** (backend REST endpoints)
+* **Pandas & NumPy** (data manipulation)
+* **scikit-learn** (StandardScaler, K-Means, nearest-neighbors)
+* **Vanilla HTML** 
+
+---
+
+## Features
+
+* **Data Fetching**: Streaming PGN from Lichess API with moves, engine evals, and opening metadata.
+* **Feature Engineering**: Per-game metrics (`ply_count`, `avg_trades`, `first_queen_ply`, `castled_early`, `checks`, `result_score`).
+* **Style Vectorization**: Aggregation into per-player style vectors (means & proportions across games).
+* **Clustering & Matching**: StandardScaler + K-Means clustering for style archetypes, Euclidean nearest-neighbors for peer selection.
+* **Opening Stats**: Frequency & performance (`score_pct`, log-weighted) of ECO codes among peers.
+* **Recommendations**: Top openings for White and Black, balancing success and sample size.
+
+---
+
+## Architecture & Directory Layout
+
+```
+CHESS-OPENING-RECOMMENDER/      ← project root
+├── README.md
+├── cache/                      ← per-user PGN + parsed caches
+│   └── user_cache/
+├── frontend/                   ← static assets
+│   └── index.html
+├── src/
+│   ├── api/
+│   │   └── main.py             ← FastAPI application
+│   └── recommender/
+│       ├── data_fetcher.py
+│       ├── feature_engineering.py
+│       ├── clustering.py
+│       └── opening_recommender.py
+├── storage/                    ← reference datasets
+│   ├── lichess_elite_2025-05.parquet
+│   └── elite_style_vectors.csv
+├── pyproject.toml              ← dependencies, scripts
+└── poetry.lock                 ← locked versions
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+* Python 3.10+
+* [`poetry`](https://python-poetry.org/) or `pipenv` for venv & deps
+* A [Lichess API token](https://lichess.org/account/oauth/token)
+
+### Installation
 
 ```bash
-python src/process_data.py  # parses PGN → processed parquet
+git clone git@github.com:nickmvega/chess-opening-recommender.git
+cd chess-opening-recommender
+poetry install
 ```
-- Reads `<dataset_file>` set in **config.json**.
-- Outputs `<processed_file>` containing: `game_id, white_id, black_id, white_elo, black_elo, eco, result, pgn`.
 
-### 2. Further Processing & Wrangling
+### Environment Variables
 
-```bash
-python src/format_data.py  # loads parquet → pandas/duckdb
+Create a `.env` in project root:
+
 ```
-- Produces per-game and per-user tables ready for feature generation.
-
-### 3. Feature Engineering
-
-```bash
-python src/feature_engineering.py  # builds style vectors
-```
-- Generates move embeddings + engineered counts.
-- Saves `user_embedding.parquet` and `titled_embedding.parquet`.
-
-### 4. Similarity Index
-
-```bash
-python src/build_ann.py  # FAISS index
-```
-- Indexes all user vectors for millisecond retrieval.
-
-### 5. Opening Recommendation
-
-
-### 5. Opening Recommendation
-
-```bash
-python src/recommend.py --user <lichess_username> --topk 10
-```
-- Returns JSON with openings (`eco`, `name`, `pgn`, `score`) and closest titled player.
-
-### 6. API Service
-
-```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8000
-```
-- **GET `/recommend/{username}`** → opening list.
-- **GET `/celeb/{username}`** → `{ "celeb": "GM MagnusCarlsen" }`.
-
-
-### 7. Static Demo
-- `/chess` page (GitHub Pages) embeds **chessboard.js** & **chess.js**.
-- Fetches API, animates the top opening line for interactive viewing.
-
----
-
-## Data Sources
-
-| Dataset                                       | Purpose                           | License         |
-| --------------------------------------------- | --------------------------------- | --------------- |
-| **Lichess Open Database** – monthly PGN dumps | Core game history                 | CC-0            |
-| **Lichess API** `/api/games/user/{username}`  | On-demand latest games            | AGPL-3          |
-| **Chess Openings (Kaggle)**                   | ECO code ↔︎ name ↔︎ PGN main line | CC BY-SA 4.0    |
-| (Optional) **Chess.com Games (Kaggle)**       | Cross-platform extension          | CC BY-NC-SA 4.0 |
-
----
-
-## Tech Stack *(TBD)*
-
----
-
-
-## Planned Repo Structure
-
-```text
-chess-openings-recs/
-├─ src/
-│  ├─ data/                # ingestion & processing scripts
-│  ├─ features/            # feature engineering modules
-│  ├─ models/              # similarity & recommendation logic
-│  ├─ api/                 # FastAPI service
-│  └─ utils/               # helpers
-├─ notebooks/              # exploratory analysis
-├─ tests/                  # pytest
-├─ config.json
-├─ Dockerfile
-└─ README.md
+LICHESS_TOKEN=your_lichess_api_token_here
+USER_CACHE_DIR=/absolute/path/to/cache/user_cache
 ```
 
 ---
 
-## License
+## Running Locally
 
-MIT
+### API Server
+
+```bash
+uvicorn src.api.main:app \
+  --reload \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+### Frontend
+
+Open `http://127.0.0.1:8000/` in your browser.
 
 ---
 
-## Acknowledgements
+## API Reference
 
-- Lichess for openly publishing game data.
-- Kaggle community for curated opening datasets.
+### `POST /fetch`
+
+Fetch raw PGN.
+
+* **Body**: `{ "username": "Chessanonymous1" }`
+* **Response**: `{ "pgn_path": "/.../cache/user_cache/Chessanonymous1.pgn" }`
+
+### `POST /parse`
+
+Parse cached PGN.
+
+* **Body**: same as `/fetch`
+* **Response**:
+
+  ```
+  {
+    "parsed_path": "/.../cache/user_cache/parsed/Chessanonymous1.parquet",
+    "games_count": 123
+  }
+  ```
+
+### `POST /features`
+
+Compute style features.
+
+* **Body**: same
+* **Response**:
+
+  ```
+  {
+    "user_style": {
+      "avg_moves": 55.3,
+      "pct_long_games": 0.12,
+      … 10 metrics …
+    }
+  }
+  ```
+
+### `POST /recommend/{username}`
+
+Full pipeline: fetch→parse→features→match→recommend.
+
+* **Query**: `?time_control=blitz` (optional)
+* **Response**:
+
+  ```
+  {
+    "top_peers": ["Attack2GM","rtahmass",…],
+    "white_recommendations":[
+      {"eco":"A00","opening":"Kádas Opening","games_played":12,"score_pct":0.75},…
+    ],
+    "black_recommendations":[…]
+  }
+  ```
+
+---
+
+## Caching & Storage
+
+* **Raw PGN**: `USER_CACHE_DIR/{username}.pgn`
+* **Parsed Parquet**: `USER_CACHE_DIR/parsed/{username}.parquet`
+* Consider TTL eviction (e.g. delete >24 hr old files).
+
+---
+
+## Examples
+
+```bash
+curl -X POST "http://127.0.0.1:8000/recommend/Chessanonymous1?time_control=rapid"
+```
+
