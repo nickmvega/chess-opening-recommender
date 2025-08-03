@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chess Opening Recommender</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
+    label { display: block; margin: .5rem 0; }
+    select, input { padding: .5em; font-size: 1em; }
+    button { padding: .5em 1em; }
+    .error { color: red; margin-top: 1em; }
+    .section { margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Chess Opening Recommender</h1>
+  <form id="form">
+    <label>
+      Lichess Username:
+      <input id="user" placeholder="e.g. MagnusCarlsen" required />
+    </label>
+    <label>
+      Time Control (optional):
+      <select id="tc">
+        <option value="">Any</option>
+        <option value="bullet">Bullet</option>
+        <option value="blitz">Blitz</option>
+        <option value="rapid">Rapid</option>
+        <option value="classical">Classical</option>
+      </select>
+    </label>
+    <button type="submit">Get Recommendations</button>
+  </form>
+
+  <div id="status" class="section"></div>
+  <div id="results" class="section"></div>
+
+  <script>
+    //get form elements
+    const form = document.getElementById("form");
+    const statusBox = document.getElementById("status");
+    const resultsBox = document.getElementById("results");
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const username = document.getElementById("user").value.trim();
+      const timeControl = document.getElementById("tc").value;
+      if (!username) return;
+
+      statusBox.textContent = "Step 1: Fetching & analyzing your games…";
+      resultsBox.innerHTML = "";
+
+      try {
+        const endpoint = `/recommend/${encodeURIComponent(username)}?time_control=${encodeURIComponent(timeControl)}`;
+        const response = await fetch(endpoint, { method: "POST" });
+
+        if (!response.ok) {
+          let errorMsg = response.statusText;
+          try {
+            const errJson = await response.json();
+            if (errJson && errJson.detail) errorMsg = errJson.detail;
+          } catch {}
+          throw new Error(errorMsg);
+        }
+
+        statusBox.textContent = "Step 2: Rendering results…";
+        const data = await response.json();
+
+        //top style peers
+        let html = `<div class="section"><h2>Top Style Peers</h2><ul>`;
+        (data.top_peers || []).forEach(peer => {
+          html += `<li>${peer}</li>`;
+        });
+        html += `</ul></div>`;
+
+        //white recommendations
+        html += `<div class="section"><h2>Recommended as White</h2><ul>`;
+        (data.white_recommendations || []).forEach(rec => {
+          html += `<li><strong>${rec.eco}</strong> – ${rec.opening} (${rec.games_played} games, ${Math.round(rec.score_pct*100)}% score)</li>`;
+        });
+        html += `</ul></div>`;
+
+        //black recommendations
+        html += `<div class="section"><h2>Recommended as Black</h2><ul>`;
+        (data.black_recommendations || []).forEach(rec => {
+          html += `<li><strong>${rec.eco}</strong> – ${rec.opening} (${rec.games_played} games, ${Math.round(rec.score_pct*100)}% score)</li>`;
+        });
+        html += `</ul></div>`;
+
+        resultsBox.innerHTML = html;
+        statusBox.textContent = "Done!";
+      } catch (err) {
+        statusBox.innerHTML = `<span class="error">Error: ${err.message}</span>`;
+      }
+    });
+  </script>
