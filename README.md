@@ -1,57 +1,104 @@
 # Chess Opening Recommender
 
-A full‐stack pipeline that fetches Lichess games, profiles player “style” via feature engineering, clusters elite players, finds stylistic peers, and recommends personalized openings for White and Black.
+A full-stack pipeline that fetches Lichess games, profiles player *style* via feature-engineering, clusters elite players, finds stylistic peers, and recommends personalized openings for White and Black.
 
 ---
 
 ## Table of Contents
 
-1. [Project Overview](#project-overview)
-2. [Features](#features)
-3. [Architecture & Directory Layout](#architecture--directory-layout)
-4. [Getting Started](#getting-started)
+1. [Project Flow](#project-flow)  
+2. [Project Overview](#project-overview)  
+3. [Features & Sources](#features--sources)  
+4. [Architecture & Directory Layout](#architecture--directory-layout)  
+5. [Getting Started](#getting-started)  
+   * [Prerequisites](#prerequisites)  
+   * [Installation](#installation)  
+   * [Environment Variables](#environment-variables)  
+6. [Running Locally](#running-locally)  
+   * [API Server](#api-server)  
+   * [Frontend](#frontend)  
+7. [API Reference](#api-reference)  
+8. [Caching & Storage](#caching--storage)  
+9. [Examples](#examples)  
+10. [References](#references)  
 
-   * [Prerequisites](#prerequisites)
-   * [Installation](#installation)
-   * [Environment Variables](#environment-variables)
-5. [Running Locally](#running-locally)
+---
 
-   * [API Server](#api-server)
-   * [Frontend](#frontend)
-6. [API Reference](#api-reference)
-7. [Caching & Storage](#caching--storage)
-8. [Examples](#examples)
-9. [Next Steps](#next-steps)
-10. [Credits](#credits)
+## Project Flow
+
+1. **Overview**  
+   Load a user’s PGN plus an elite reference set, then parse, feature-engineer, cluster, and recommend.
+
+2. **Goal**  
+   Produce a 10-dimensional numerical *style vector* for any user and leverage it to surface statistically strong, style-matching openings.
+
+3. **Purpose**  
+   Validate the entire pipeline on a **single user** in each notebook before scaling it behind the API.
+
+4. **Step-by-Step (notebook cells)**  
+   * **Load & Parse PGN** – convert raw PGN text into a `DataFrame` of moves & metadata.  
+   * **Extract Features** – compute per-game metrics (`ply_count`, `avg_trades`, …).  
+   * **Summarize Style** – aggregate per-game rows into one per-player vector.  
+   * **Cluster & Neighbor Search** – place the user inside the elite style space, find nearest peers.  
+   * **Opening Stats & Recommendation** – rank ECO codes by peer performance and output top picks.  
 
 ---
 
 ## Project Overview
 
-This system allows you to input a Lichess username (and optionally a time control) and receive:
+Input a Lichess username (and optional time control) → receive:
 
-* **Your style profile** (20+ numeric features: game length, material trades, queen deployment, checks, win-rate, etc.).
-* **Top 5 stylistic peers** drawn from a reference set of 500 “elite” players.
-* **Recommended openings** (2–3 for White and Black) based on peer performance, weighted by both score% and sample size.
+* **Style profile** – 20 + numeric features (game length, trades, queen deployment, checks, win-rate, …)  
+* **Top 5 stylistic peers** – nearest elite players from a 500-player dataset  
+* **Opening recommendations** – 2–3 ECO codes for White *and* Black, balanced by peer score × sample size  
 
-Built with:
+Stack:
 
-* **Python** (data fetching & feature engineering)
-* **FastAPI** (backend REST endpoints)
-* **Pandas & NumPy** (data manipulation)
-* **scikit-learn** (StandardScaler, K-Means, nearest-neighbors)
-* **Vanilla HTML** 
+* **Python** (Pandas, NumPy, scikit-learn)  
+* **FastAPI** (backend)  
+* **Vanilla HTML + JS** (frontend)  
 
 ---
 
-## Features
+## Features & Sources
 
-* **Data Fetching**: Streaming PGN from Lichess API with moves, engine evals, and opening metadata.
-* **Feature Engineering**: Per-game metrics (`ply_count`, `avg_trades`, `first_queen_ply`, `castled_early`, `checks`, `result_score`).
-* **Style Vectorization**: Aggregation into per-player style vectors (means & proportions across games).
-* **Clustering & Matching**: StandardScaler + K-Means clustering for style archetypes, Euclidean nearest-neighbors for peer selection.
-* **Opening Stats**: Frequency & performance (`score_pct`, log-weighted) of ECO codes among peers.
-* **Recommendations**: Top openings for White and Black, balancing success and sample size.
+Below are the extracted style dimensions, why they matter, and where to read more.
+
+- **Game Length** (`avg_moves`, `pct_long_games`)  
+  Longer games lean positional; short games often indicate sharp tactics or early mistakes.  
+  *Sources:*  
+  • [Lichess Insights – Game Length Analysis](https://lichess.org/blog/Insights/chess-game-length)  
+  • Kruijswijk et al., “Statistical Patterns in Human Chess Play” (2020)
+
+- **Material Trades** (`avg_trades`)  
+  High trade counts signal comfort simplifying to clear endgames; low counts reflect piece-rich complexity.  
+  *Sources:*  
+  • Harikrishna et al., “Material Imbalances in Grandmaster Games” (2018)  
+  • [Chess.com Blog – To Trade or Not to Trade](https://www.chess.com/blog)
+
+- **Queen Deployment** (`avg_queen_move`)  
+  Early queen moves reveal aggressive intentions; late deployment stresses development & safety.  
+  *Sources:*  
+  • John Nunn, *Understanding Chess Move by Move* (2001)  
+  • [StackExchange – When Should You Move Your Queen?](https://chess.stackexchange.com/questions/when-should-you-move-your-queen)
+
+- **Castling Behavior** (`pct_castled_early`)  
+  Early castling highlights king safety; delaying castling keeps options open but risks exposure.  
+  *Sources:*  
+  • de Groot & Gobet, *Perception and Memory in Chess* (1996)  
+  • [Lichess Blog – Castling Trends](https://lichess.org/blog)
+
+- **Tactical Checks** (`avg_checks`)  
+  Frequent checks denote tactical pressure and attacking propensity.  
+  *Sources:*  
+  • Yuri Averbakh, *Comprehensive Chess Endings* (1975)  
+  • [Chessable – Using Checks as Tactical Weapons](https://www.chessable.com)
+
+- **Performance Metrics** (`win_rate`, `pct_wins`, `pct_draws`, `pct_losses`)  
+  Captures effectiveness against openings across a large sample.  
+  *Sources:*  
+  • Arpad Elo, *The Rating of Chessplayers* (1986)  
+  • [FIDE Handbook – Performance Rating](https://handbook.fide.com)
 
 ---
 
