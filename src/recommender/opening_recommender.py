@@ -51,10 +51,8 @@ import numpy as np
 import pandas as pd
 
 
-def get_peer_games(
-        elite_df: pd.DataFrame, peer_list: list[str]) -> pd.DataFrame:
-    mask = elite_df["white"].isin(
-        peer_list) | elite_df["black"].isin(peer_list)
+def get_peer_games(elite_df: pd.DataFrame, peer_list: list[str]) -> pd.DataFrame:
+    mask = elite_df["white"].isin(peer_list) | elite_df["black"].isin(peer_list)
     return elite_df[mask].copy()
 
 
@@ -80,15 +78,13 @@ def compute_opening_stats(
         )
         .reset_index()
     )
-    stats["score_pct"] = (
-        stats["wins"] + 0.5 * stats["draws"]) / stats["games_played"]
+    stats["score_pct"] = (stats["wins"] + 0.5 * stats["draws"]) / stats["games_played"]
     stats["weight"] = stats["score_pct"] * np.log10(stats["games_played"] + 1)
 
     if min_games > 0:
         stats = stats[stats["games_played"] >= min_games]
 
-    return stats.sort_values(
-        ["weight", "games_played"], ascending=False).reset_index(
+    return stats.sort_values(["weight", "games_played"], ascending=False).reset_index(
         drop=True
     )
 

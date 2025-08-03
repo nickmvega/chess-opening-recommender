@@ -101,8 +101,7 @@ def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
                 if p and p.piece_type == chess.QUEEN:
                     first_q = ply
             if castled_ply is None and not any(
-                board.has_castling_rights(side)
-                    for side in [chess.WHITE, chess.BLACK]
+                board.has_castling_rights(side) for side in [chess.WHITE, chess.BLACK]
             ):
                 castled_ply = ply
             if board.is_check():
@@ -157,8 +156,6 @@ def build_elite_style_vectors(elite_games_df: pd.DataFrame) -> pd.DataFrame:
         [white_df[feature_cols], black_df[feature_cols]], ignore_index=True
     )
 
-    style_vectors = all_games.groupby(
-        "player").apply(summarize_player_features)
-    style_vectors = style_vectors.reset_index().rename(
-        columns={"index": "player"})
+    style_vectors = all_games.groupby("player").apply(summarize_player_features)
+    style_vectors = style_vectors.reset_index().rename(columns={"index": "player"})
     return style_vectors

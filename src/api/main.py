@@ -49,8 +49,7 @@ def serve_index():
     return FileResponse(idx)
 
 
-app.mount("/static", StaticFiles(
-    directory=str(frontend_dir), html=True), name="static")
+app.mount("/static", StaticFiles(directory=str(frontend_dir), html=True), name="static")
 
 
 # schemas
@@ -99,8 +98,7 @@ def recommend_all(
     user_vec = summarize_player_features(feats_df)
 
     # find top-5 stylistic peers
-    neighbors_df = find_style_neighbors(
-        user_vec, clustered_elite, scaler, top_n=5)
+    neighbors_df = find_style_neighbors(user_vec, clustered_elite, scaler, top_n=5)
     peer_list = neighbors_df["player"].tolist()
 
     # gather only peer games (and filter by time_control)
@@ -114,14 +112,11 @@ def recommend_all(
         ]
 
     # compute opening stats on peer_games (min_games=5 for robustness)
-    white_stats = compute_opening_stats(
-            elite_games_df, peer_list, color="white")
-    black_stats = compute_opening_stats(
-            elite_games_df, peer_list, color="black")
+    white_stats = compute_opening_stats(elite_games_df, peer_list, color="white")
+    black_stats = compute_opening_stats(elite_games_df, peer_list, color="black")
 
     # top-3 recommendations each
-    white_recs, black_recs = recommend_openings(
-            white_stats, black_stats, top_n=3)
+    white_recs, black_recs = recommend_openings(white_stats, black_stats, top_n=3)
 
     return RecommendResp(
         top_peers=peer_list,
