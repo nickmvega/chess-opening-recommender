@@ -52,6 +52,7 @@ def serve_index():
 app.mount("/static", StaticFiles(directory=str(frontend_dir), html=True), name="static")
 
 
+
 # schemas
 class RecommendResp(BaseModel):
     top_peers: list[str]

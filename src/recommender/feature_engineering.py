@@ -1,112 +1,91 @@
-"""
-Overview:
-This module transforms raw chess game data into quantitative “style” features
-and aggregates them into per‐player style vectors. It powers Phase 2 of the
-pipeline—feature engineering—by exposing:
-
-  • extract_style_features: computes per‐game metrics
-    from a DataFrame of games
-  • summarize_player_features: reduces per‐game metrics to
-    a single per‐player vector
-  • build_elite_style_vectors: applies the above to an entire reference set of
-    elite games, producing one vector per elite player
-
-Pipeline Usage:
-1. Ingest games via `data_fetcher.parse_user_pgn` or `parse_elite_pgn_fast`.
-2. Call `extract_style_features(games_df)` to compute per‐game features.
-3. Call `summarize_player_features(features_df)`
-    to collapse a user’s games into a single style vector.
-4. (Reference only) Use `build_elite_style_vectors(elite_games_df)` to prepare
-   the style database of elite players.
-
-Functions:
-extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame
-    Given a DataFrame of games with columns:
-      - 'moves' (list of UCI strings)
-      - 'result' (string: '1-0', '0-1', '1/2-1/2', '½-½')
-    Computes per‐game style metrics and returns a new DataFrame
-    with these added:
-      • ply_count          — total half‐moves
-      • avg_trades         — number of captures
-      • first_queen_ply    — ply index of first queen move
-      • castled_early      — True if castled by ply 20
-      • checks             — number of checks given
-      • result_score       — numeric result (1/0.5/0)
-
-summarize_player_features(features_df: pd.DataFrame) -> pd.Series
-    Aggregates a per‐game features DataFrame into a single style vector by
-    taking means and proportions across games. Returns a pandas Series with:
-      • avg_moves, pct_long_games, avg_trades, avg_queen_move,
-        pct_castled_early, avg_checks, win_rate,
-        pct_wins, pct_draws, pct_losses
-
-build_elite_style_vectors(elite_games_df: pd.DataFrame) -> pd.DataFrame
-    Converts a DataFrame of elite games (with 'white' and 'black' columns plus
-    per‐game features) into one style vector per elite player by:
-      1. Tagging each row once with white as player and
-      once with black as player
-      2. Concatenating and grouping by 'player'
-      3. Applying `summarize_player_features` to each group
-
-Features:
-This pipeline captures a variety of intuitive style dimensions:
-
-  • Game Length & Endgame Tendency
-    – ply_count, pct_long_games
-
-  • Material Exchanges
-    – avg_trades
-
-  • Queen Deployment
-    – first_queen_ply
-
-  • King Safety
-    – castled_early
-
-  • Tactical Aggression
-    – checks
-
-  • Overall Performance
-    – result_score → win_rate, pct_wins, pct_draws, pct_losses
-
-By combining these features, we numerically profile how each player prefers to
-navigate the opening, middlegame tactics, and endgame transitions, enabling
-style‐aware peer matching and personalized opening recommendations.
-"""
-
 import chess
+from collections import defaultdict
+from typing import Dict, List
+
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+PIECE_VALUES: Dict[int, int] = {
+    chess.PAWN: 1,
+    chess.KNIGHT: 3,
+    chess.BISHOP: 3,
+    chess.ROOK: 5,
+    chess.QUEEN: 9,
+    chess.KING: 0, 
+}
+
+
+def _material_value(board: chess.Board) -> int:
+    """Return simple material balance (white – black) using PIECE_VALUES."""
+    total = 0
+    for square, piece in board.piece_map().items():
+        sign = 1 if piece.color == chess.WHITE else -1
+        total += sign * PIECE_VALUES[piece.piece_type]
+    return total
 
 def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
     score_map = {"1-0": 1.0, "0-1": 0.0, "1/2-1/2": 0.5, "½-½": 0.5}
     recs = []
-    for _, row in tqdm(
-        games_df.iterrows(), total=len(games_df), desc="Extracting features"
-    ):
-        moves = row["moves"] or []
-        result = row.get("result", "")
+
+    for _, row in tqdm(games_df.iterrows(),
+                       total=len(games_df),
+                       desc="Extracting style features"):
+
+        moves: list[str] = row.get("moves", []) or []
         board = chess.Board()
-        trades = checks = 0
-        first_q = None
-        castled_ply = None
-        for ply, uci in enumerate(moves, 1):
-            mv = chess.Move.from_uci(uci)
-            if board.is_capture(mv):
+
+        trades = checks = sacrifice_count = 0
+        first_q = castled_ply = queen_trade_ply = None
+        dev_first_plys = []
+        prev_material = _material_value(board)
+
+        for ply, uci in enumerate(moves, start=1):
+            try:
+                move = chess.Move.from_uci(uci)
+            except ValueError:
+                # malformed UCI (rare) – skip
+                continue
+
+            # **NEW** – skip moves that aren’t legal in the current position
+            if not board.is_legal(move):
+                continue
+
+            # capture count
+            if board.is_capture(move):
                 trades += 1
-            board.push(mv)
-            if first_q is None:
-                p = board.piece_at(mv.to_square)
-                if p and p.piece_type == chess.QUEEN:
-                    first_q = ply
-            if castled_ply is None and not any(
-                board.has_castling_rights(side) for side in [chess.WHITE, chess.BLACK]
-            ):
+
+            piece = board.piece_at(move.from_square)
+            board.push(move)
+
+            # queen movement
+            if first_q is None and piece and piece.piece_type == chess.QUEEN:
+                first_q = ply
+
+            # castling detection
+            if castled_ply is None and board.castling_rights == 0:
                 castled_ply = ply
+
+            # checks
             if board.is_check():
                 checks += 1
+
+            # queen trade detection
+            if queen_trade_ply is None and (
+                board.pieces(chess.QUEEN, chess.WHITE) == 0
+                and board.pieces(chess.QUEEN, chess.BLACK) == 0
+            ):
+                queen_trade_ply = ply
+
+            # simple sacrifice heuristic
+            curr_material = _material_value(board)
+            if abs(curr_material - prev_material) <= -3:
+                sacrifice_count += 1
+            prev_material = curr_material
+
         ply_count = len(moves)
+        endgame_reached = ply_count >= 80 or len(board.piece_map()) <= 10
+
         recs.append(
             {
                 **row.to_dict(),
@@ -115,11 +94,15 @@ def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
                 "first_queen_ply": first_q or ply_count + 1,
                 "castled_early": bool(castled_ply and castled_ply <= 20),
                 "checks": checks,
-                "result_score": score_map.get(result, 0.0),
+                "result_score": score_map.get(row.get("result", ""), 0.0),
+                "sacrifice_count": sacrifice_count,
+                "queen_traded_early": bool(queen_trade_ply and queen_trade_ply <= 40),
+                "dev_ply_avg": np.mean(dev_first_plys) if dev_first_plys else np.nan,
+                "endgame_reached": endgame_reached,
             }
         )
-    return pd.DataFrame(recs)
 
+    return pd.DataFrame(recs)
 
 def summarize_player_features(features_df: pd.DataFrame) -> pd.Series:
     summary = {
@@ -133,29 +116,31 @@ def summarize_player_features(features_df: pd.DataFrame) -> pd.Series:
         "pct_wins": (features_df["result_score"] == 1.0).mean(),
         "pct_draws": (features_df["result_score"] == 0.5).mean(),
         "pct_losses": (features_df["result_score"] == 0.0).mean(),
+        "sacrifice_rate": (features_df["sacrifice_count"] > 0).mean(),
+        "queen_trade_freq": features_df["queen_traded_early"].mean(),
+        "avg_dev_moves": features_df["dev_ply_avg"].mean(),
+        "pct_games_endgame": features_df["endgame_reached"].mean(),
+        "opening_variety": features_df["eco"].nunique() / len(features_df),
     }
-    return pd.Series(summary)
 
+    return pd.Series(summary, dtype="float32")
 
 def build_elite_style_vectors(elite_games_df: pd.DataFrame) -> pd.DataFrame:
+
+    required_cols = {"white", "black", "ply_count"}
+    if not required_cols.issubset(elite_games_df.columns):
+        raise ValueError("elite_games_df missing required columns")
+
+    #treat each game twice: once from White perspective, once from Black
     white_df = elite_games_df.copy()
     white_df["player"] = white_df["white"]
     black_df = elite_games_df.copy()
     black_df["player"] = black_df["black"]
 
-    feature_cols = [
-        "player",
-        "ply_count",
-        "avg_trades",
-        "first_queen_ply",
-        "castled_early",
-        "checks",
-        "result_score",
-    ]
-    all_games = pd.concat(
-        [white_df[feature_cols], black_df[feature_cols]], ignore_index=True
-    )
+    all_games = pd.concat([white_df, black_df], ignore_index=True)
 
-    style_vectors = all_games.groupby("player").apply(summarize_player_features)
-    style_vectors = style_vectors.reset_index().rename(columns={"index": "player"})
-    return style_vectors
+    style_vectors = (
+        all_games.groupby("player", sort=False).apply(summarize_player_features)
+    )
+    style_vectors.index.name = None
+    return style_vectors.reset_index().rename(columns={"index": "player"})

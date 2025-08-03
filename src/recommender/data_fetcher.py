@@ -41,7 +41,7 @@ get_user_profile(username: str) -> dict
 """
 
 # config
-LICHESS_TOKEN = "lip_ahC4dKsZutvIIgr4Dy2O"
+LICHESS_TOKEN = "lip_lew5dTsRn7Ohk7VnX682"
 HEADERS = {"Authorization": f"Bearer {LICHESS_TOKEN}"}
 
 
