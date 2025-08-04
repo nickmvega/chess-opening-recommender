@@ -6,6 +6,7 @@ import chess.pgn
 import pandas as pd
 import requests
 from tqdm import tqdm
+import os
 
 """
 Overview:
@@ -41,7 +42,7 @@ get_user_profile(username: str) -> dict
 """
 
 # config
-LICHESS_TOKEN = "lip_hVxTmtSai6CmE8ELQx08"
+LICHESS_TOKEN = os.getenv("LICHESS_TOKEN")
 HEADERS = {"Authorization": f"Bearer {LICHESS_TOKEN}"}
 
 
