@@ -16,21 +16,21 @@ from recommender.feature_engineering import (extract_style_features,
 from recommender.opening_recommender import (compute_opening_stats,
                                              recommend_openings)
 
+from .data_loader import get_elite_games_df, get_style_vectors_df
+
+
 # directory resolution
 src_dir = Path(__file__).resolve().parent.parent
 project_root = src_dir.parent
 frontend_dir = project_root / "frontend"
 storage_dir = project_root / "storage"
-user_cache_dir = Path(
-    os.getenv("USER_CACHE_DIR", str(project_root / "cache" / "user_cache"))
-)
+user_cache_dir = Path("/tmp/user_cache")
+
 
 # load reference data once
-elite_games_df = pd.read_parquet(storage_dir / "lichess_elite_2025-05.parquet")
-elite_style_v = pd.read_csv(storage_dir / "elite_style_vectors.csv")
-clustered_elite, scaler, kmeans = cluster_styles(
-    elite_style_v, n_clusters=5, random_state=42
-)
+elite_games_df = get_elite_games_df()
+elite_style_v  = get_style_vectors_df()
+clustered_elite, scaler, kmeans = cluster_styles(elite_style_v, n_clusters=5, random_state=42)
 
 # app setup
 app = FastAPI(title="Chess Opening Recommender API")

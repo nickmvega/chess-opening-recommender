@@ -1,1 +1,4 @@
 data/*.pgn
+storage/**
+cache/**
+*.pgn
