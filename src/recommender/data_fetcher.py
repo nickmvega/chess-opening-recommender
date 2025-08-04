@@ -1,4 +1,5 @@
 import io
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -6,7 +7,6 @@ import chess.pgn
 import pandas as pd
 import requests
 from tqdm import tqdm
-import os
 
 """
 Overview:
