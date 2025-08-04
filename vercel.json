@@ -2,16 +2,14 @@
   "version": 2,
   "outputDirectory": "frontend",
 
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",        
-      "config": {
-        "runtime": "python3.11",        
-        "excludeFiles": "frontend/**"  
-      }
+  "functions": {
+    "api/**/*.py": {
+      "runtime": "@vercel/python@3.1.1",
+      "memory": 1024,
+      "maxDuration": 30,
+      "excludeFiles": "{frontend/data/**,storage/**}"
     }
-  ],
+  },
 
   "routes": [
     { "src": "^/recommend/(.*)$", "dest": "/api/index.py" }
