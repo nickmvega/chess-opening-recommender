@@ -1,7 +1,6 @@
 fastapi
 pandas
 numpy
-scipy
-scikit-learn       
+scikit-learn-core     
 httpx
 python-multipart
