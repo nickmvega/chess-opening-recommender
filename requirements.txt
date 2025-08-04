@@ -3,3 +3,4 @@ pandas
 httpx
 python-multipart
 python-chess
+requests
