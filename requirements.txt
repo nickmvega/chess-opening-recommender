@@ -1,6 +1,7 @@
 fastapi
-pandas     
+pandas           
 httpx
 python-multipart
 python-chess
-requests
+requests        
+tqdm             
