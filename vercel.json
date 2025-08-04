@@ -1,18 +1,17 @@
 {
   "version": 2,
 
-  "builds": [
-    { "src": "frontend/index.html", "use": "@vercel/static" },    
+    "builds": [
+    { "src": "frontend/**", "use": "@vercel/static" },   
     {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.11",             
+        "src": "api/index.py",
+        "use": "@vercel/python",
+        "config": {
+        "runtime": "python3.12",
         "excludeFiles": "frontend/data/**"    
-      }
+        }
     }
-  ],
-
+    ],
   "routes": [
     { "src": "/recommend/(.*)", "dest": "/api/index.py" },         
     { "handle": "filesystem" },                                    
