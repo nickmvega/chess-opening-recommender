@@ -12,9 +12,10 @@
         }
     }
     ],
-  "routes": [
-    { "src": "/recommend/(.*)", "dest": "/api/index.py" },         
-    { "handle": "filesystem" },                                    
-    { "src": "/(.*)", "dest": "/frontend/index.html" }            
-  ]
+    "routes": [
+    { "src": "/data/(.*)", "dest": "/frontend/data/$1" },   
+    { "src": "/recommend/(.*)", "dest": "/api/index.py" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/frontend/index.html" }
+    ]
 }
