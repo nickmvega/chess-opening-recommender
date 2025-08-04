@@ -1,8 +1,7 @@
 # Chess Opening Recommender
 
-With over 1000+ named chess openings, it can be hard to choose a chess opening that matches your particular style.
-In this project, I have focused on fixing that issue. I have created a full pipeline that fetches a users Lichess games,
-profiles a users playing style through feature engineering, then takes a dataset from elite players and finds their style. I then cluster the elite players with the users playing style to find match users openings with similar styles to elite players who win more games. I then recommend oepnings for both the WHite and Black pieces. 
+With over 1000+ named chess openings, it can be hard to choose a chess opening that matches your particular style.  
+In this project, I have focused on fixing that issue. I have created a full pipeline that fetches a user’s Lichess games, profiles a user’s playing style through feature engineering, then takes a dataset from elite players and finds their style. I then cluster the elite players with the user’s playing style to match openings with similar styles to elite players who win more games. I then recommend openings for both the White and Black pieces.
 
 ---
 
@@ -11,7 +10,7 @@ profiles a users playing style through feature engineering, then takes a dataset
 1. [Project Overview](#project-overview)  
 2. [Note Flow](#project-flow)  
 3. [Features & Sources](#features--sources)  
-4. [Architecture & Directory Layout](#architecture--directory-layout)  
+4. [Live Deployment](#live-deployment)  
 5. [Getting Started](#getting-started)  
    * [Prerequisites](#prerequisites)  
    * [Installation](#installation)  
@@ -30,7 +29,7 @@ profiles a users playing style through feature engineering, then takes a dataset
 
 Input a Lichess username (and optional time control) → receive:
 
-* **Style profile** – 20 + numeric features (game length, trades, queen deployment, checks, win-rate, …)  
+* **Style profile** – 20+ numeric features (game length, trades, queen deployment, checks, win-rate, …)  
 * **Top 5 stylistic peers** – nearest elite players from a 500-player dataset  
 * **Opening recommendations** – 2–3 ECO codes for White *and* Black, balanced by peer score × sample size  
 
@@ -42,24 +41,23 @@ Stack:
 
 ## Notebook Flow
 
-The notebooks/ folder was used for initial testing on fetching data, feature engineering, clustering users, and recommending openings before the API itself and website was created. 
+The `notebooks/` folder was used for initial testing on fetching data, feature engineering, clustering users, and recommending openings before the API and website were created.
 
 **Overview**  
-   Load a user’s PGN plus an elite reference set, then parse, feature-engineer, cluster, and recommend.
+Load a user’s PGN plus an elite reference set, then parse, feature-engineer, cluster, and recommend.
 
 **Goal**  
-   Produce a 10-dimensional numerical *style vector* for any user and leverage it to surface statistically strong, style-matching openings.
+Produce a 14-dimensional numerical *style vector* for any user and leverage it to surface statistically strong, style-matching openings.
 
 **Purpose**  
-   Validate the entire pipeline on a **single user** in each notebook before scaling it behind the API.
+Validate the entire pipeline on a **single user** in each notebook before scaling it behind the API.
 
 **Step-by-Step (notebook cells)**  
-   * **Load & Parse PGN** – convert raw PGN text into a `DataFrame` of moves & metadata.  
-   * **Extract Features** – compute per-game metrics (`ply_count`, `avg_trades`, …).  
-   * **Summarize Style** – aggregate per-game rows into one per-player vector.  
-   * **Cluster & Neighbor Search** – place the user inside the elite style space, find nearest peers.  
-   * **Opening Stats & Recommendation** – rank ECO codes by peer performance and output top picks.  
-
+* **Load & Parse PGN** – convert raw PGN text into a `DataFrame` of moves & metadata.  
+* **Extract Features** – compute per-game metrics (`ply_count`, `avg_trades`, …).  
+* **Summarize Style** – aggregate per-game rows into one per-player vector.  
+* **Cluster & Neighbor Search** – place the user inside the elite style space, find nearest peers.  
+* **Opening Stats & Recommendation** – rank ECO codes by peer performance and output top picks.  
 
 ---
 
@@ -153,30 +151,13 @@ Aggregate computer-evaluated error rate; lower error = solid style, higher = vol
 - [Regan & Haworth 2011](https://cse.buffalo.edu/~regan/papers/pdf/ReHa11c.pdf)  
 - [Mehdiyev 2025](https://uu.diva-portal.org/smash/get/diva2:1977201/FULLTEXT01.pdf)
 
+---
 
-## Architecture & Directory Layout
+## Live Deployment
 
-```
-CHESS-OPENING-RECOMMENDER/      ← project root
-├── README.md
-├── cache/                      ← per-user PGN + parsed caches
-│   └── user_cache/
-├── frontend/                   ← static assets
-│   └── index.html
-├── src/
-│   ├── api/
-│   │   └── main.py             ← FastAPI application
-│   └── recommender/
-│       ├── data_fetcher.py
-│       ├── feature_engineering.py
-│       ├── clustering.py
-│       └── opening_recommender.py
-├── storage/                    ← reference datasets
-│   ├── lichess_elite_2025-05.parquet
-│   └── elite_style_vectors.csv
-├── pyproject.toml              ← dependencies, scripts
-└── poetry.lock                 ← locked versions
-```
+nickmvega.com/chess-opening-recommender
+
+Fully deployed website
 
 ---
 
@@ -185,16 +166,17 @@ CHESS-OPENING-RECOMMENDER/      ← project root
 ### Prerequisites
 
 * Python 3.10+
-* [`poetry`](https://python-poetry.org/) or `pipenv` for venv & deps
+* `pip` or `poetry`  
 * A [Lichess API token](https://lichess.org/account/oauth/token)
+
 
 ### Installation
 
-```bash
-git clone git@github.com:nickmvega/chess-opening-recommender.git
+git clone https://github.com/nickmvega/chess-opening-recommender.git
 cd chess-opening-recommender
-poetry install
-```
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
 ### Environment Variables
 
@@ -212,10 +194,7 @@ USER_CACHE_DIR=/absolute/path/to/cache/user_cache
 ### API Server
 
 ```bash
-uvicorn src.api.main:app \
-  --reload \
-  --host 0.0.0.0 \
-  --port 8000
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Frontend
@@ -224,70 +203,32 @@ Open `http://127.0.0.1:8000/` in your browser.
 
 ---
 
-## API Reference
+API Reference
 
-### `POST /fetch`
+POST /fetch
+Download raw PGN for a given username.
 
-Fetch raw PGN.
+POST /parse
+Convert cached PGN into structured Parquet.
 
-* **Body**: `{ "username": "Chessanonymous1" }`
-* **Response**: `{ "pgn_path": "/.../cache/user_cache/Chessanonymous1.pgn" }`
+POST /features
+Compute the user’s style vector.
 
-### `POST /parse`
+POST /recommend/{username}
+Full pipeline: fetch → parse → features → peers → openings.
+Optional query parameter: time_control (bullet, blitz, rapid, classical).
 
-Parse cached PGN.
-
-* **Body**: same as `/fetch`
-* **Response**:
-
-  ```
-  {
-    "parsed_path": "/.../cache/user_cache/parsed/Chessanonymous1.parquet",
-    "games_count": 123
-  }
-  ```
-
-### `POST /features`
-
-Compute style features.
-
-* **Body**: same
-* **Response**:
-
-  ```
-  {
-    "user_style": {
-      "avg_moves": 55.3,
-      "pct_long_games": 0.12,
-      … 10 metrics …
-    }
-  }
-  ```
-
-### `POST /recommend/{username}`
-
-Full pipeline: fetch→parse→features→match→recommend.
-
-* **Query**: `?time_control=blitz` (optional)
-* **Response**:
-
-  ```
-  {
-    "top_peers": ["Attack2GM","rtahmass",…],
-    "white_recommendations":[
-      {"eco":"A00","opening":"Kádas Opening","games_played":12,"score_pct":0.75},…
-    ],
-    "black_recommendations":[…]
-  }
-  ```
+All endpoints return JSON; see src/api/main.py for schemas.
 
 ---
 
 ## Caching & Storage
 
-* **Raw PGN**: `USER_CACHE_DIR/{username}.pgn`
-* **Parsed Parquet**: `USER_CACHE_DIR/parsed/{username}.parquet`
-* Consider TTL eviction (e.g. delete >24 hr old files).
+    Raw PGN: saved under cache/user_cache/{username}.pgn
+
+    Parsed Parquet: saved under cache/user_cache/{username}.parquet
+
+    Reference datasets: bundled and served from frontend/data/
 
 ---
 
