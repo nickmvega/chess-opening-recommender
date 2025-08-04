@@ -9,8 +9,7 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "runtime": "python3.12",
-        "excludeFiles": "frontend/data/**"
+        "runtime": "python3.12"
       }
     }
   ],
