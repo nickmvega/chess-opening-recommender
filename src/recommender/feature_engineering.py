@@ -121,13 +121,10 @@ def summarize_player_features(features_df: pd.DataFrame) -> pd.Series:
         "pct_wins": (features_df["result_score"] == 1.0).mean(),
         "pct_draws": (features_df["result_score"] == 0.5).mean(),
         "pct_losses": (features_df["result_score"] == 0.0).mean(),
-        "sacrifice_rate": (features_df["sacrifice_count"] > 0).mean(),
         "queen_trade_freq": features_df["queen_traded_early"].mean(),
-        "avg_dev_moves": features_df["dev_ply_avg"].mean(),
         "pct_games_endgame": features_df["endgame_reached"].mean(),
         "opening_variety": features_df["eco"].nunique() / len(features_df),
     }
-
     return pd.Series(summary, dtype="float32")
 
 

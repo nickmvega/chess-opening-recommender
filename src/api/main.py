@@ -41,7 +41,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # serve index.html at `/` and static assets under `/static`
 @app.get("/", include_in_schema=False)
 def serve_index():
