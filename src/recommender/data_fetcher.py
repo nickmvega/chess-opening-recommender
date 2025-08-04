@@ -42,7 +42,7 @@ get_user_profile(username: str) -> dict
 """
 
 # config
-LICHESS_TOKEN = 'lip_Nft7pqiD9bRmg9gpjU4m'
+LICHESS_TOKEN = os.getenv("LICHESS_TOKEN")
 HEADERS = {"Authorization": f"Bearer {LICHESS_TOKEN}"}
 
 
