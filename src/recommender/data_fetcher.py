@@ -63,13 +63,13 @@ def fetch_user_games(username: str, save_to: Optional[Path] = None) -> str:
         save_to.write_text(text, encoding="utf-8")
     return text
 
+
 # fetch lichess user profile as json
 def get_user_profile(username: str) -> dict:
     url = f"https://lichess.org/api/user/{username}"
     r = requests.get(url, headers=HEADERS, timeout=10)
     r.raise_for_status()
     return r.json()
-
 
 
 # parse a multi-game pgn string into a dataframe
@@ -139,7 +139,7 @@ def parse_elite_pgn(pgn_path: Path) -> pd.DataFrame:
                     "utc_date": hdr.get("UTCDate"),
                     "utc_time": hdr.get("UTCTime"),
                     "time_control": hdr.get("TimeControl"),
-                    "moves": moves
+                    "moves": moves,
                 }
             )
     return pd.DataFrame(records)

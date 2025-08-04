@@ -29,8 +29,9 @@ def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
     score_map = {"1-0": 1.0, "0-1": 0.0, "1/2-1/2": 0.5, "½-½": 0.5}
     recs = []
 
-    for _, row in tqdm(games_df.iterrows(), total=len(games_df),
-                    desc="Extracting style features"):
+    for _, row in tqdm(
+        games_df.iterrows(), total=len(games_df), desc="Extracting style features"
+    ):
 
         moves = row.get("moves", [])
         if isinstance(moves, np.ndarray):
@@ -51,37 +52,37 @@ def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
                 # malformed UCI (rare) – skip
                 continue
 
-            #skip moves that aren’t legal in the current position
+            # skip moves that aren’t legal in the current position
             if not board.is_legal(move):
                 continue
 
-            #capture count
+            # capture count
             if board.is_capture(move):
                 trades += 1
 
             piece = board.piece_at(move.from_square)
             board.push(move)
 
-            #queen movement
+            # queen movement
             if first_q is None and piece and piece.piece_type == chess.QUEEN:
                 first_q = ply
 
-            #castling detection
+            # castling detection
             if castled_ply is None and board.castling_rights == 0:
                 castled_ply = ply
 
-            #checks
+            # checks
             if board.is_check():
                 checks += 1
 
-            #queen trade detection
+            # queen trade detection
             if queen_trade_ply is None and (
                 board.pieces(chess.QUEEN, chess.WHITE) == 0
                 and board.pieces(chess.QUEEN, chess.BLACK) == 0
             ):
                 queen_trade_ply = ply
 
-            #simple sacrifice heuristic
+            # simple sacrifice heuristic
             curr_material = _material_value(board)
             if abs(curr_material - prev_material) <= -3:
                 sacrifice_count += 1
@@ -101,11 +102,12 @@ def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
                 "result_score": score_map.get(row.get("result", ""), 0.0),
                 "sacrifice_count": sacrifice_count,
                 "queen_traded_early": bool(queen_trade_ply and queen_trade_ply <= 40),
-                "endgame_reached": endgame_reached
+                "endgame_reached": endgame_reached,
             }
         )
 
     return pd.DataFrame(recs)
+
 
 def summarize_player_features(features_df: pd.DataFrame) -> pd.Series:
     summary = {
