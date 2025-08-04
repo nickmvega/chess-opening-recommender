@@ -1,8 +1,7 @@
-# api/index.py  – Vercel's entry point
 import sys
 from pathlib import Path
 
-# make the repo root importable
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+repo_root = Path(__file__).resolve().parent.parent    
+sys.path.append(str(repo_root / "src"))             
 
-from src.api.main import app
+from src.api.main import app               
