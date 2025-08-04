@@ -6,7 +6,7 @@ from functools import lru_cache
 import httpx
 import pandas as pd
 
-BASE_URL = "/data/"
+BASE_URL = "/frontend/data/"
 CSV_GZ = "lichess_elite_2025-05.csv.gz"
 STYLE_CSV = "elite_style_vectors.csv"
 
