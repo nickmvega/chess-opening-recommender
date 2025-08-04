@@ -9,7 +9,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from recommender.clustering_np import cluster_styles_np, find_style_neighbors_np
+from recommender.clustering import (cluster_styles_np,
+                                       find_style_neighbors_np)
 from recommender.data_fetcher import fetch_user_games, parse_user_pgn
 from recommender.feature_engineering import (extract_style_features,
                                              summarize_player_features)

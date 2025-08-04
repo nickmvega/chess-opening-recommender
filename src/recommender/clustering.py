@@ -1,4 +1,5 @@
 import pandas as pd
+
 """
 Overview:
 This module is for matching chess player style vectors and clustering them for my opening recommender.
@@ -33,16 +34,17 @@ I put this in a module so I can use it in the api, cli, or anywhere else, not ju
 import numpy as np
 import pandas as pd
 
+
 def _scale_fit(X: np.ndarray):
     mean = X.mean(axis=0)
-    std  = X.std(axis=0, ddof=0) + 1e-9        
+    std = X.std(axis=0, ddof=0) + 1e-9
     return mean, std, (X - mean) / std
 
 
 def _kmeans_lloyd(X: np.ndarray, n_clusters: int, n_iter: int = 100, seed: int = 42):
     rng = np.random.default_rng(seed)
-    idx  = rng.choice(len(X), n_clusters, replace=False)
-    cent = X[idx]                               # initial centroids
+    idx = rng.choice(len(X), n_clusters, replace=False)
+    cent = X[idx]  # initial centroids
 
     for _ in range(n_iter):
         # assign points → nearest centroid
@@ -58,11 +60,11 @@ def _kmeans_lloyd(X: np.ndarray, n_clusters: int, n_iter: int = 100, seed: int =
 def cluster_styles_np(style_vectors: pd.DataFrame, n_clusters: int, seed: int = 42):
     feats_df = style_vectors.drop(columns="player", errors="ignore")
     mean, std, Xs = _scale_fit(feats_df.to_numpy(dtype=np.float32))
-    labels, cent  = _kmeans_lloyd(Xs, n_clusters, seed=seed)
+    labels, cent = _kmeans_lloyd(Xs, n_clusters, seed=seed)
 
     df = style_vectors.copy()
     df["cluster"] = labels
-    scaler = {"mean": mean, "std": std}         
+    scaler = {"mean": mean, "std": std}
     return df, scaler, cent
 
 
@@ -70,15 +72,14 @@ def _scale_transform(arr: np.ndarray, scaler: dict):
     return (arr - scaler["mean"]) / scaler["std"]
 
 
-def find_style_neighbors_np(user_vector: pd.Series,
-                            style_vectors: pd.DataFrame,
-                            scaler: dict,
-                            top_n: int = 5) -> pd.DataFrame:
+def find_style_neighbors_np(
+    user_vector: pd.Series, style_vectors: pd.DataFrame, scaler: dict, top_n: int = 5
+) -> pd.DataFrame:
     feats = style_vectors.drop(columns=["player", "cluster"], errors="ignore")
-    user  = _scale_transform(user_vector.to_numpy(dtype=np.float32), scaler)
+    user = _scale_transform(user_vector.to_numpy(dtype=np.float32), scaler)
     peers = _scale_transform(feats.to_numpy(dtype=np.float32), scaler)
 
     dists = ((peers - user) ** 2).sum(1) ** 0.5
-    out   = style_vectors[["player"]].copy()
+    out = style_vectors[["player"]].copy()
     out["distance"] = dists
     return out.nsmallest(top_n, "distance").reset_index(drop=True)
