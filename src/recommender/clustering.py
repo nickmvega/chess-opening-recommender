@@ -1,8 +1,4 @@
 import pandas as pd
-from sklearn.cluster import KMeans
-from sklearn.metrics import pairwise_distances
-from sklearn.preprocessing import StandardScaler
-
 """
 Overview:
 This module is for matching chess player style vectors and clustering them for my opening recommender.
@@ -34,32 +30,55 @@ find_style_neighbors(
 
 I put this in a module so I can use it in the api, cli, or anywhere else, not just notebooks.
 """
+import numpy as np
+import pandas as pd
+
+def _scale_fit(X: np.ndarray):
+    mean = X.mean(axis=0)
+    std  = X.std(axis=0, ddof=0) + 1e-9        
+    return mean, std, (X - mean) / std
 
 
-# cluster the style vectors and return clusters, scaler, and kmeans
-def cluster_styles(
-    style_vectors: pd.DataFrame, n_clusters: int, random_state: int = 42
-):
-    feats = style_vectors.drop(columns=["player"], errors="ignore")
-    scaler = StandardScaler().fit(feats)
-    X = scaler.transform(feats)
-    km = KMeans(n_clusters=n_clusters, random_state=random_state).fit(X)
+def _kmeans_lloyd(X: np.ndarray, n_clusters: int, n_iter: int = 100, seed: int = 42):
+    rng = np.random.default_rng(seed)
+    idx  = rng.choice(len(X), n_clusters, replace=False)
+    cent = X[idx]                               # initial centroids
+
+    for _ in range(n_iter):
+        # assign points → nearest centroid
+        labels = ((X[:, None, :] - cent[None, :, :]) ** 2).sum(-1).argmin(1)
+        # recompute centroids
+        new_cent = np.vstack([X[labels == k].mean(0) for k in range(n_clusters)])
+        if np.allclose(new_cent, cent):
+            break
+        cent = new_cent
+    return labels, cent
+
+
+def cluster_styles_np(style_vectors: pd.DataFrame, n_clusters: int, seed: int = 42):
+    feats_df = style_vectors.drop(columns="player", errors="ignore")
+    mean, std, Xs = _scale_fit(feats_df.to_numpy(dtype=np.float32))
+    labels, cent  = _kmeans_lloyd(Xs, n_clusters, seed=seed)
+
     df = style_vectors.copy()
-    df["cluster"] = km.labels_
-    return df, scaler, km
+    df["cluster"] = labels
+    scaler = {"mean": mean, "std": std}         
+    return df, scaler, cent
 
 
-# find the closest style neighbors for a user
-def find_style_neighbors(
-    user_vector: pd.Series,
-    style_vectors: pd.DataFrame,
-    scaler: StandardScaler,
-    top_n: int = 5,
-) -> pd.DataFrame:
+def _scale_transform(arr: np.ndarray, scaler: dict):
+    return (arr - scaler["mean"]) / scaler["std"]
+
+
+def find_style_neighbors_np(user_vector: pd.Series,
+                            style_vectors: pd.DataFrame,
+                            scaler: dict,
+                            top_n: int = 5) -> pd.DataFrame:
     feats = style_vectors.drop(columns=["player", "cluster"], errors="ignore")
-    user_arr = scaler.transform([user_vector.values])
-    peer_arr = scaler.transform(feats)
-    dists = pairwise_distances(user_arr, peer_arr, metric="euclidean")[0]
-    out = style_vectors[["player"]].copy()
+    user  = _scale_transform(user_vector.to_numpy(dtype=np.float32), scaler)
+    peers = _scale_transform(feats.to_numpy(dtype=np.float32), scaler)
+
+    dists = ((peers - user) ** 2).sum(1) ** 0.5
+    out   = style_vectors[["player"]].copy()
     out["distance"] = dists
     return out.nsmallest(top_n, "distance").reset_index(drop=True)

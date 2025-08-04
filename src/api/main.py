@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from recommender.clustering import cluster_styles, find_style_neighbors
+from recommender.clustering_np import cluster_styles_np, find_style_neighbors_np
 from recommender.data_fetcher import fetch_user_games, parse_user_pgn
 from recommender.feature_engineering import (extract_style_features,
                                              summarize_player_features)
@@ -29,9 +29,7 @@ user_cache_dir = Path("/tmp/user_cache")
 # load reference data once
 elite_games_df = get_elite_games_df()
 elite_style_v = get_style_vectors_df()
-clustered_elite, scaler, kmeans = cluster_styles(
-    elite_style_v, n_clusters=5, random_state=42
-)
+elite_df, scaler, centroids = cluster_styles_np(elite_style_v, n_clusters=5)
 
 # app setup
 app = FastAPI(title="Chess Opening Recommender API")
@@ -101,7 +99,7 @@ def recommend_all(
     user_vec = summarize_player_features(feats_df)
 
     # find top-5 stylistic peers
-    neighbors_df = find_style_neighbors(user_vec, clustered_elite, scaler, top_n=5)
+    neighbors_df = find_style_neighbors_np(user_vec, elite_df, scaler, top_n=5)
     peer_list = neighbors_df["player"].tolist()
 
     # gather only peer games (and filter by time_control)
