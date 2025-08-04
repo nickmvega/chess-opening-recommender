@@ -1,16 +1,32 @@
-import gzip, pandas as pd
-from pathlib import Path
+import gzip
 from functools import lru_cache
+from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "frontend/data"
-CSV_GZ   = DATA_DIR / "lichess_elite_2025-05.csv.gz"
-STYLE_CSV = DATA_DIR / "elite_style_vectors.csv"
+import pandas as pd
+
+BASE_URL = "/data/" 
+CSV_GZ = "lichess_elite_2025-05.csv.gz"
+STYLE_CSV = "elite_style_vectors.csv"
+
 
 @lru_cache(1)
-def get_elite_games_df() -> pd.DataFrame:
-    with gzip.open(CSV_GZ, "rt") as f:
+def get_elite_games_df():
+    import io
+
+    import httpx
+
+    r = httpx.get(f"{BASE_URL}{CSV_GZ}", timeout=60)
+    r.raise_for_status()
+    with gzip.GzipFile(fileobj=io.BytesIO(r.content)) as f:
         return pd.read_csv(f)
 
+
 @lru_cache(1)
-def get_style_vectors_df() -> pd.DataFrame:
-    return pd.read_csv(STYLE_CSV)
+def get_style_vectors_df():
+    import io
+
+    import httpx
+
+    r = httpx.get(f"{BASE_URL}{STYLE_CSV}", timeout=30)
+    r.raise_for_status()
+    return pd.read_csv(io.BytesIO(r.content))
