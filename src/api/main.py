@@ -18,7 +18,6 @@ from recommender.opening_recommender import (compute_opening_stats,
 
 from .data_loader import get_elite_games_df, get_style_vectors_df
 
-
 # directory resolution
 src_dir = Path(__file__).resolve().parent.parent
 project_root = src_dir.parent
@@ -29,8 +28,10 @@ user_cache_dir = Path("/tmp/user_cache")
 
 # load reference data once
 elite_games_df = get_elite_games_df()
-elite_style_v  = get_style_vectors_df()
-clustered_elite, scaler, kmeans = cluster_styles(elite_style_v, n_clusters=5, random_state=42)
+elite_style_v = get_style_vectors_df()
+clustered_elite, scaler, kmeans = cluster_styles(
+    elite_style_v, n_clusters=5, random_state=42
+)
 
 # app setup
 app = FastAPI(title="Chess Opening Recommender API")
@@ -40,6 +41,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # serve index.html at `/` and static assets under `/static`
 @app.get("/", include_in_schema=False)
