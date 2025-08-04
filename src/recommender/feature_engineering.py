@@ -1,7 +1,7 @@
-import chess
 from collections import defaultdict
 from typing import Dict, List
 
+import chess
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -12,7 +12,7 @@ PIECE_VALUES: Dict[int, int] = {
     chess.BISHOP: 3,
     chess.ROOK: 5,
     chess.QUEEN: 9,
-    chess.KING: 0, 
+    chess.KING: 0,
 }
 
 
@@ -24,17 +24,21 @@ def _material_value(board: chess.Board) -> int:
         total += sign * PIECE_VALUES[piece.piece_type]
     return total
 
+
 def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
     score_map = {"1-0": 1.0, "0-1": 0.0, "1/2-1/2": 0.5, "½-½": 0.5}
     recs = []
 
-    for _, row in tqdm(games_df.iterrows(),
-                       total=len(games_df),
-                       desc="Extracting style features"):
+    for _, row in tqdm(games_df.iterrows(), total=len(games_df),
+                    desc="Extracting style features"):
 
-        moves: list[str] = row.get("moves", []) or []
+        moves = row.get("moves", [])
+        if isinstance(moves, np.ndarray):
+            moves = moves.tolist()
+        elif moves is None:
+            moves = []
+
         board = chess.Board()
-
         trades = checks = sacrifice_count = 0
         first_q = castled_ply = queen_trade_ply = None
         dev_first_plys = []
@@ -47,37 +51,37 @@ def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
                 # malformed UCI (rare) – skip
                 continue
 
-            # **NEW** – skip moves that aren’t legal in the current position
+            #skip moves that aren’t legal in the current position
             if not board.is_legal(move):
                 continue
 
-            # capture count
+            #capture count
             if board.is_capture(move):
                 trades += 1
 
             piece = board.piece_at(move.from_square)
             board.push(move)
 
-            # queen movement
+            #queen movement
             if first_q is None and piece and piece.piece_type == chess.QUEEN:
                 first_q = ply
 
-            # castling detection
+            #castling detection
             if castled_ply is None and board.castling_rights == 0:
                 castled_ply = ply
 
-            # checks
+            #checks
             if board.is_check():
                 checks += 1
 
-            # queen trade detection
+            #queen trade detection
             if queen_trade_ply is None and (
                 board.pieces(chess.QUEEN, chess.WHITE) == 0
                 and board.pieces(chess.QUEEN, chess.BLACK) == 0
             ):
                 queen_trade_ply = ply
 
-            # simple sacrifice heuristic
+            #simple sacrifice heuristic
             curr_material = _material_value(board)
             if abs(curr_material - prev_material) <= -3:
                 sacrifice_count += 1
@@ -97,8 +101,7 @@ def extract_style_features(games_df: pd.DataFrame) -> pd.DataFrame:
                 "result_score": score_map.get(row.get("result", ""), 0.0),
                 "sacrifice_count": sacrifice_count,
                 "queen_traded_early": bool(queen_trade_ply and queen_trade_ply <= 40),
-                "dev_ply_avg": np.mean(dev_first_plys) if dev_first_plys else np.nan,
-                "endgame_reached": endgame_reached,
+                "endgame_reached": endgame_reached
             }
         )
 
@@ -125,13 +128,14 @@ def summarize_player_features(features_df: pd.DataFrame) -> pd.Series:
 
     return pd.Series(summary, dtype="float32")
 
+
 def build_elite_style_vectors(elite_games_df: pd.DataFrame) -> pd.DataFrame:
 
     required_cols = {"white", "black", "ply_count"}
     if not required_cols.issubset(elite_games_df.columns):
         raise ValueError("elite_games_df missing required columns")
 
-    #treat each game twice: once from White perspective, once from Black
+    # treat each game twice: once from White perspective, once from Black
     white_df = elite_games_df.copy()
     white_df["player"] = white_df["white"]
     black_df = elite_games_df.copy()
@@ -139,8 +143,8 @@ def build_elite_style_vectors(elite_games_df: pd.DataFrame) -> pd.DataFrame:
 
     all_games = pd.concat([white_df, black_df], ignore_index=True)
 
-    style_vectors = (
-        all_games.groupby("player", sort=False).apply(summarize_player_features)
+    style_vectors = all_games.groupby("player", sort=False).apply(
+        summarize_player_features
     )
     style_vectors.index.name = None
     return style_vectors.reset_index().rename(columns={"index": "player"})

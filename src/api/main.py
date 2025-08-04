@@ -28,7 +28,7 @@ user_cache_dir = Path(
 # load reference data once
 elite_games_df = pd.read_parquet(storage_dir / "lichess_elite_2025-05.parquet")
 elite_style_v = pd.read_csv(storage_dir / "elite_style_vectors.csv")
-clustered_elite, scaler, kmeans = cluster_styles(elite_style_v)
+clustered_elite, scaler, kmeans = cluster_styles(elite_style_v, n_clusters=50, random_state=42)
 
 # app setup
 app = FastAPI(title="Chess Opening Recommender API")
@@ -50,7 +50,6 @@ def serve_index():
 
 
 app.mount("/static", StaticFiles(directory=str(frontend_dir), html=True), name="static")
-
 
 
 # schemas

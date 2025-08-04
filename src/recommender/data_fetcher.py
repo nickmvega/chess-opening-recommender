@@ -41,7 +41,7 @@ get_user_profile(username: str) -> dict
 """
 
 # config
-LICHESS_TOKEN = "lip_lew5dTsRn7Ohk7VnX682"
+LICHESS_TOKEN = "lip_hVxTmtSai6CmE8ELQx08"
 HEADERS = {"Authorization": f"Bearer {LICHESS_TOKEN}"}
 
 
@@ -62,6 +62,14 @@ def fetch_user_games(username: str, save_to: Optional[Path] = None) -> str:
         save_to.parent.mkdir(parents=True, exist_ok=True)
         save_to.write_text(text, encoding="utf-8")
     return text
+
+# fetch lichess user profile as json
+def get_user_profile(username: str) -> dict:
+    url = f"https://lichess.org/api/user/{username}"
+    r = requests.get(url, headers=HEADERS, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
 
 
 # parse a multi-game pgn string into a dataframe
@@ -105,10 +113,10 @@ def parse_user_pgn(pgn_text: str) -> pd.DataFrame:
 
 # stream the first n_games from the elite pgn file,
 # parse headers+moves+evals, return as dataframe
-def parse_elite_pgn_fast(pgn_path: Path, n_games: int = 500) -> pd.DataFrame:
+def parse_elite_pgn(pgn_path: Path) -> pd.DataFrame:
     records = []
     with pgn_path.open(encoding="utf-8", errors="ignore") as fh:
-        for _ in tqdm(range(n_games), desc="parsing elite pgn"):
+        while True:
             game = chess.pgn.read_game(fh)
             if game is None:
                 break
@@ -131,16 +139,7 @@ def parse_elite_pgn_fast(pgn_path: Path, n_games: int = 500) -> pd.DataFrame:
                     "utc_date": hdr.get("UTCDate"),
                     "utc_time": hdr.get("UTCTime"),
                     "time_control": hdr.get("TimeControl"),
-                    "moves": moves,
-                    "evals": evals,
+                    "moves": moves
                 }
             )
     return pd.DataFrame(records)
-
-
-# fetch lichess user profile json
-def get_user_profile(username: str) -> dict:
-    url = f"https://lichess.org/api/user/{username}"
-    r = requests.get(url, headers=HEADERS, timeout=10)
-    r.raise_for_status()
-    return r.json()
