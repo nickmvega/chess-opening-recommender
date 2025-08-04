@@ -1,6 +1,6 @@
 pandas              
 numpy             
-scikit-learn    
+scikit-learn-lite  
 fastapi    
 httpx
 python-multipart   
