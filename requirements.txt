@@ -1,7 +1,7 @@
 fastapi
-pandas==2.2.2        
-numpy==2.2.2
-scipy==1.12.0
-scikit-learn==1.4.2  
+pandas
+numpy
+scipy
+scikit-learn       
 httpx
 python-multipart
